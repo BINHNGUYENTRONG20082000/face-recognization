@@ -387,6 +387,7 @@ FACE_DET_SCORE = 0.5     # Chất lượng face detect tối thiểu — thấp 
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
+    print("=== Test RTSP Camera - Face Recognition ===")
     if THRESHOLD is not None:
         import app.config as cfg
         cfg.RECOGNITION_SIM_THRESHOLD = THRESHOLD
