@@ -25,7 +25,10 @@ class StreamReader:
 
     # ──────────────────────────────────────────────────────────────────────────
     def _open(self):
-        self._cap = cv2.VideoCapture(self.source)
+        if isinstance(self.source, str) and self.source.startswith("rtsp://"):
+            self._cap = cv2.VideoCapture(self.source, cv2.CAP_FFMPEG)
+        else:
+            self._cap = cv2.VideoCapture(self.source)
         if not self._cap.isOpened():
             raise StreamOpenError(
                 f"[StreamReader] Không mở được nguồn: {self.source}"
@@ -33,19 +36,27 @@ class StreamReader:
         logger.info(f"[StreamReader] Đã kết nối camera {self.camera_id} → {self.source}")
 
     # ──────────────────────────────────────────────────────────────────────────
-    def read(self):
+    def read(self, stop_event=None):
         """Generator trả về từng frame (numpy array BGR)."""
         self._open()
         try:
             while True:
+                if stop_event is not None and stop_event.is_set():
+                    break
                 ret, frame = self._cap.read()
                 if not ret:
                     logger.warning("[StreamReader] Hết frame hoặc mất kết nối.")
                     break
                 yield frame
         finally:
-            self._cap.release()
+            if self._cap is not None:
+                self._cap.release()
             logger.info(f"[StreamReader] Đã đóng camera {self.camera_id}")
+
+    # ──────────────────────────────────────────────────────────────────────────
+    def stop(self):
+        if self._cap is not None:
+            self._cap.release()
 
     # ──────────────────────────────────────────────────────────────────────────
     def get_fps(self) -> float:

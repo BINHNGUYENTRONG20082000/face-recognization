@@ -4,6 +4,7 @@ pipeline.py - Orchestrator kết nối toàn bộ modules realtime
 
 import time
 import logging
+import threading
 from typing import Optional
 
 from app.config import (
@@ -31,6 +32,7 @@ class Pipeline:
 
     def __init__(self, camera_id: str = "cam_01"):
         self.camera_id   = camera_id
+        self._stop_event = threading.Event()
         self.stream      = StreamReader(camera_id, CAMERA_SOURCES[camera_id])
         self.detector    = PersonDetector()
         self.tracker     = PersonTracker()
@@ -39,6 +41,16 @@ class Pipeline:
         self.memory      = TrackMemory()
         self.builder     = ResultBuilder()
         self.log_service = LoggerService(camera_id)
+
+    # ──────────────────────────────────────────────────────────────────────────
+    def stop(self):
+        self._stop_event.set()
+        self.stream.stop()
+
+    # ──────────────────────────────────────────────────────────────────────────
+    @property
+    def stop_requested(self) -> bool:
+        return self._stop_event.is_set()
 
     # ──────────────────────────────────────────────────────────────────────────
     def _should_recognize(self, track_id: int, frame_id: int) -> bool:
@@ -65,6 +77,7 @@ class Pipeline:
 
         # 2. Update tracker
         tracks = self.tracker.update(persons, frame)
+        active_track_ids = {track["track_id"] for track in tracks}
 
         detections = []
         for track in tracks:
@@ -122,6 +135,8 @@ class Pipeline:
                 "source":     source,
             })
 
+        self.memory.cleanup(active_track_ids)
+
         # 7. Build frame result
         result = self.builder.build(
             frame_id=frame_id,
@@ -139,12 +154,14 @@ class Pipeline:
         logger.info(f"[Pipeline] Bắt đầu camera {self.camera_id}")
         frame_id = 0
         start_ts = time.time()
-
-        for frame in self.stream.read():
-            timestamp = round(time.time() - start_ts, 3)
-            result = self.process_frame(frame, frame_id, timestamp)
-            logger.debug(f"[Frame {frame_id}] {len(result['detections'])} detections")
-            frame_id += 1
-
-        self.log_service.close()
-        logger.info("[Pipeline] Kết thúc")
+        try:
+            for frame in self.stream.read(stop_event=self._stop_event):
+                if self._stop_event.is_set():
+                    break
+                timestamp = round(time.time() - start_ts, 3)
+                result = self.process_frame(frame, frame_id, timestamp)
+                logger.debug(f"[Frame {frame_id}] {len(result['detections'])} detections")
+                frame_id += 1
+        finally:
+            self.log_service.close()
+            logger.info("[Pipeline] Kết thúc")

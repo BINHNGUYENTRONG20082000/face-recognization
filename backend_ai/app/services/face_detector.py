@@ -5,10 +5,9 @@ Output: list[{bbox, kps, det_score}]  — sắp xếp theo score giảm dần
 
 import logging
 import numpy as np
-import insightface
 from insightface.app import FaceAnalysis
 
-from app.config import INSIGHTFACE_MODEL_NAME, INSIGHTFACE_DET_SIZE
+from app.config import INSIGHTFACE_CTX_ID, INSIGHTFACE_MODEL_NAME, INSIGHTFACE_DET_SIZE
 from app.core.exceptions import ModelNotLoadedError
 
 logger = logging.getLogger(__name__)
@@ -21,7 +20,7 @@ class FaceDetector:
                 name=INSIGHTFACE_MODEL_NAME,
                 allowed_modules=["detection"],
             )
-            self._app.prepare(ctx_id=0, det_size=INSIGHTFACE_DET_SIZE)
+            self._app.prepare(ctx_id=INSIGHTFACE_CTX_ID, det_size=INSIGHTFACE_DET_SIZE)
             logger.info("[FaceDetector] InsightFace detection đã sẵn sàng.")
         except Exception as e:
             raise ModelNotLoadedError(f"Không load được InsightFace: {e}") from e

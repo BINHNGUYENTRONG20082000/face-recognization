@@ -6,11 +6,11 @@ Output: {name, score, status}
 import json
 import logging
 import numpy as np
-import insightface
 from insightface.app import FaceAnalysis
 
 from app.config import (
     INSIGHTFACE_MODEL_NAME,
+    INSIGHTFACE_CTX_ID,
     INSIGHTFACE_DET_SIZE,
     EMBEDDINGS_PATH,
     NAMES_PATH,
@@ -35,7 +35,7 @@ class FaceRecognizer:
                 name=INSIGHTFACE_MODEL_NAME,
                 allowed_modules=["detection", "recognition"],
             )
-            self._app.prepare(ctx_id=0, det_size=INSIGHTFACE_DET_SIZE)
+            self._app.prepare(ctx_id=INSIGHTFACE_CTX_ID, det_size=INSIGHTFACE_DET_SIZE)
             logger.info("[FaceRecognizer] InsightFace recognition đã sẵn sàng.")
         except Exception as e:
             raise ModelNotLoadedError(f"Không load được InsightFace recognizer: {e}") from e

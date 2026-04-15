@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "backend-ai-face-recognition"
+version = "0.1.0"
+description = "FastAPI backend for realtime person tracking and face recognition"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.29.0",
+    "pydantic>=2.7.0",
+    "opencv-python>=4.9.0",
+    "ultralytics>=8.2.0",
+    "insightface>=0.7.3",
+    "onnxruntime-gpu>=1.17.0",
+    "numpy>=1.26.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0"]
+
+[project.scripts]
+backend-ai-api = "app.main:run"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

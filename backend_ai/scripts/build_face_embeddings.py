@@ -11,7 +11,6 @@ import json
 import logging
 import os
 import numpy as np
-import insightface
 from insightface.app import FaceAnalysis
 from pathlib import Path
 
@@ -25,6 +24,7 @@ EMBEDDINGS_OUT  = str(BASE_DIR / "input" / "face_features" / "embeddings.npy")
 NAMES_OUT       = str(BASE_DIR / "input" / "face_features" / "names.json")
 MODEL_NAME      = "buffalo_l"
 DET_SIZE        = (640, 640)
+CTX_ID          = int(os.getenv("INSIGHTFACE_CTX_ID", "0"))
 
 
 import re
@@ -89,7 +89,7 @@ def _collect_subdir(images_path: Path) -> dict[str, list[Path]]:
 
 def build(images_dir: str, embeddings_out: str, names_out: str):
     app = FaceAnalysis(name=MODEL_NAME, allowed_modules=["detection", "recognition"])
-    app.prepare(ctx_id=0, det_size=DET_SIZE)
+    app.prepare(ctx_id=CTX_ID, det_size=DET_SIZE)
 
     embeddings: list[np.ndarray] = []
     names:      list[str]        = []

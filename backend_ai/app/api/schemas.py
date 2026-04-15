@@ -28,3 +28,9 @@ class StatusOut(BaseModel):
     status:    str
     camera_id: str
     message:   str
+
+
+class CameraRuntimeOut(BaseModel):
+    camera_id: str
+    status: str
+    is_alive: bool

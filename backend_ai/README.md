@@ -80,7 +80,20 @@ backend_ai/
 
 ```bash
 pip install -r requirements.txt
+# hoặc cài như package local
+pip install -e .
 ```
+
+Sao chép file môi trường:
+
+```bash
+copy .env.example .env
+```
+
+Backend sẽ tự ưu tiên dữ liệu/model theo thứ tự:
+- đường dẫn khai báo trong `.env`
+- thư mục nội bộ `backend_ai/models`, `backend_ai/input`, `backend_ai/output`
+- fallback sang workspace gốc như `E:/face recognition/yolo26n.pt` và `E:/face recognition/input/face_features`
 
 ## Bước 1 — Xây dựng Face Database (offline)
 
@@ -105,6 +118,8 @@ python scripts/build_face_embeddings.py
 python -m app.main
 # hoặc
 uvicorn app.main:app --host 0.0.0.0 --port 8000
+# hoặc sau khi cài package editable
+backend-ai-api
 ```
 
 ## Bước 3 — Khởi động pipeline
@@ -124,6 +139,15 @@ python scripts/test_camera.py cam_01
 ```bash
 pytest tests/
 ```
+
+## API runtime chính
+
+- `GET /api/v1/health` → health + danh sách camera đang chạy
+- `GET /api/v1/cameras` → trạng thái toàn bộ camera configured
+- `GET /api/v1/cameras/{camera_id}` → trạng thái một camera
+- `POST /api/v1/cameras/{camera_id}/start` → start pipeline
+- `POST /api/v1/cameras/{camera_id}/stop` → stop mềm pipeline
+- `POST /api/v1/face-db/reload` → reload database embedding
 
 ## Output schema mỗi frame
 
