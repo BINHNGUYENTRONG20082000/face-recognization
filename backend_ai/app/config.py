@@ -103,6 +103,17 @@ YOLO_MODEL_PATH = str(
         ],
     )
 )
+YOLO_MODEL_WEAPON_PATH = str(
+    _resolve_path(
+        "YOLO_MODEL_WEAPON_PATH",
+        [
+            MODELS_DIR / "best_weapon_thang.pt",
+            MODELS_DIR / "best.pt",
+            WORKSPACE_DIR / "best.pt",
+        ],
+    )
+)
+
 EMBEDDINGS_PATH = str(
     _resolve_path(
         "EMBEDDINGS_PATH",
@@ -141,6 +152,24 @@ INSIGHTFACE_DET_SIZE = (
     _env_int("INSIGHTFACE_DET_WIDTH", 640),
     _env_int("INSIGHTFACE_DET_HEIGHT", 640),
 )
+
+# ─── FAISS Search ──────────────────────────────────────────────────────────────
+_faiss_index = os.getenv("FAISS_INDEX_PATH")
+_faiss_db = os.getenv("FAISS_META_DB_PATH")
+FAISS_INDEX_PATH: Path | None = (
+    Path(_faiss_index) if _faiss_index
+    else (FACE_FEATURES_DIR / "face_index.faiss") if (FACE_FEATURES_DIR / "face_index.faiss").exists()
+    else None
+)
+FAISS_META_DB_PATH: Path | None = (
+    Path(_faiss_db) if _faiss_db
+    else (FACE_FEATURES_DIR / "face_meta.db") if (FACE_FEATURES_DIR / "face_meta.db").exists()
+    else None
+)
+FAISS_NPROBE = _env_int("FAISS_NPROBE", 8)
+FAISS_USE_GPU = os.getenv("FAISS_USE_GPU", "0") == "1"
+# HNSW: số lượng nodes mở rộng khi search (cao hơn = recall tốt hơn, chậm hơn chút)
+FAISS_EF_SEARCH = _env_int("FAISS_EF_SEARCH", 128)
 
 # ─── API ──────────────────────────────────────────────────────────────────────
 API_HOST = os.getenv("API_HOST", "0.0.0.0")

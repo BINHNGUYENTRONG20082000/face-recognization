@@ -25,8 +25,14 @@ from app.config import (
     NAMES_PATH,
     OUTPUT_DIR,
     RECOGNITION_SIM_THRESHOLD,
+    FAISS_INDEX_PATH,
+    FAISS_META_DB_PATH,
+    FAISS_NPROBE,
+    FAISS_USE_GPU,
+    FAISS_EF_SEARCH,
 )
 from app.core.exceptions import ModelNotLoadedError, EmbeddingDBNotFoundError
+from app.services.embedding_searcher import create_searcher, BaseEmbeddingSearcher
 
 logger = logging.getLogger(__name__)
 
@@ -78,22 +84,32 @@ class FaceRecognizer:
         except Exception as e:
             raise ModelNotLoadedError(f"Không load được InsightFace recognizer: {e}") from e
 
-        # Load face database
+        # Load searcher (FAISS nếu có index, numpy nếu không)
         self._load_db()
 
     # ──────────────────────────────────────────────────────────────────────────
     def _load_db(self):
         try:
-            self._embeddings: np.ndarray = np.load(EMBEDDINGS_PATH)
+            embeddings = np.load(EMBEDDINGS_PATH)
             with open(NAMES_PATH, "r", encoding="utf-8") as f:
-                self._names: list[str] = json.load(f)
-            logger.info(
-                f"[FaceRecognizer] Đã load {len(self._names)} nhân viên từ DB."
-            )
+                names: list[str] = json.load(f)
         except FileNotFoundError as e:
-            raise EmbeddingDBNotFoundError(
-                f"Không tìm thấy face DB: {e}"
-            ) from e
+            raise EmbeddingDBNotFoundError(f"Không tìm thấy face DB: {e}") from e
+
+        self._searcher: BaseEmbeddingSearcher = create_searcher(
+            embeddings=embeddings,
+            names=names,
+            faiss_index_path=str(FAISS_INDEX_PATH) if FAISS_INDEX_PATH else None,
+            faiss_db_path=str(FAISS_META_DB_PATH) if FAISS_META_DB_PATH else None,
+            use_gpu=FAISS_USE_GPU,
+            nprobe=FAISS_NPROBE,
+            ef_search=FAISS_EF_SEARCH,
+        )
+        logger.info(
+            "[FaceRecognizer] Đã load DB: %d vectors (%s).",
+            self._searcher.total_vectors(),
+            type(self._searcher).__name__,
+        )
 
     # ──────────────────────────────────────────────────────────────────────────
     def reload_db(self):
@@ -118,18 +134,7 @@ class FaceRecognizer:
         embedding = self.get_embedding(roi, face_info)
         if embedding is None:
             return {"name": None, "score": 0.0, "status": "unknown"}
-
-        sims = _cosine_similarity(embedding, self._embeddings)
-        best_idx  = int(np.argmax(sims))
-        best_score = float(sims[best_idx])
-
-        if best_score >= RECOGNITION_SIM_THRESHOLD:
-            return {
-                "name":   self._names[best_idx],
-                "score":  best_score,
-                "status": "recognized",
-            }
-        return {"name": None, "score": best_score, "status": "unknown"}
+        return self._searcher.search_one(embedding, RECOGNITION_SIM_THRESHOLD)
 
     # ──────────────────────────────────────────────────────────────────────────
     def detect_and_embed(self, frame: np.ndarray) -> list:
@@ -141,63 +146,24 @@ class FaceRecognizer:
 
     # ──────────────────────────────────────────────────────────────────────────
     def match_embedding(self, normed_emb: np.ndarray) -> dict:
-        """
-        So khớp embedding đã extract sẵn với DB — thuần numpy, không dùng GPU.
-        Trả về {"name", "score", "status"}.
-        """
-        sims       = _cosine_similarity(normed_emb, self._embeddings)
-        best_idx   = int(np.argmax(sims))
-        best_score = float(sims[best_idx])
-        if best_score >= RECOGNITION_SIM_THRESHOLD:
-            return {"name": self._names[best_idx], "score": best_score, "status": "recognized"}
-        return {"name": None, "score": best_score, "status": "unknown"}
+        """So khớp 1 embedding với DB. Trả về {"name", "score", "status"}."""
+        return self._searcher.search_one(normed_emb, RECOGNITION_SIM_THRESHOLD)
 
     # ──────────────────────────────────────────────────────────────────────────
     def batch_match_embeddings(self, normed_embs: np.ndarray) -> list[dict]:
         """
-        Batch match multiple embeddings cùng lúc — nhanh hơn loop.
-        normed_embs: shape (N, 512) — N embeddings từ N faces
+        Batch match N embeddings cùng lúc.
+        normed_embs: shape (N, 512)
         Trả về list[{"name", "score", "status"}]
         """
-        # Normalize query embeddings
-        query_norms = np.linalg.norm(normed_embs, axis=1, keepdims=True) + 1e-8
-        normed_query = normed_embs / query_norms  # shape (N, 512)
-        
-        # Normalize DB embeddings
-        db_norms = np.linalg.norm(self._embeddings, axis=1, keepdims=True) + 1e-8
-        normed_db = self._embeddings / db_norms  # shape (K, 512)
-        
-        # Batch cosine similarity: (N, 512) @ (512, K) = (N, K)
-        sims = normed_query @ normed_db.T  # shape (N, K)
-        
-        # Find best matches for each query embedding
-        best_indices = np.argmax(sims, axis=1)  # shape (N,)
-        best_scores = np.take_along_axis(sims, best_indices[:, None], axis=1).flatten()  # shape (N,)
-        
-        results = []
-        for i, (best_idx, best_score) in enumerate(zip(best_indices, best_scores)):
-            best_idx = int(best_idx)
-            best_score = float(best_score)
-            if best_score >= RECOGNITION_SIM_THRESHOLD:
-                results.append({
-                    "name": self._names[best_idx],
-                    "score": best_score,
-                    "status": "recognized",
-                })
-            else:
-                results.append({
-                    "name": None,
-                    "score": best_score,
-                    "status": "unknown",
-                })
-        return results
+        return self._searcher.search_batch(normed_embs, RECOGNITION_SIM_THRESHOLD)
 
 # ──────────────────────────────────────────────────────────────────────────
 def _run_demo(preview_width: int = 1280, preview_height: int = 720) -> None:
     import cv2
     import os
     face_recognizer = FaceRecognizer()
-    image_path = r"E:\face recognition\data test\HUG07898.jpg"
+    image_path = r"E:\face recognition\data test\IMG_003-A.JPG"
     image = cv2.imread(str(image_path))
     if image is None:
         raise FileNotFoundError(f"Không đọc được ảnh demo: {image_path}")
