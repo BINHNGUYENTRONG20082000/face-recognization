@@ -93,7 +93,7 @@ EMPLOYEE_IMAGES_DIR = str(
     )
 )
 
-YOLO_MODEL_PATH = str(
+PERSON_MODEL_PATH = str(
     _resolve_path(
         "YOLO_MODEL_PATH",
         [
@@ -107,7 +107,7 @@ YOLO_MODEL_WEAPON_PATH = str(
     _resolve_path(
         "YOLO_MODEL_WEAPON_PATH",
         [
-            MODELS_DIR / "best_weapon_thang.pt",
+            MODELS_DIR / "weapon_yolo26m.pt",
             MODELS_DIR / "best.pt",
             WORKSPACE_DIR / "best.pt",
         ],
