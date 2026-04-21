@@ -98,11 +98,12 @@ PERSON_MODEL_PATH = str(
         "YOLO_MODEL_PATH",
         [
             MODELS_DIR / "yolo26m.pt",
-            MODELS_DIR / "yolo26n.pt",
-            WORKSPACE_DIR / "yolo26n.pt",
+            # MODELS_DIR / "yolo26n.pt",
+            # WORKSPACE_DIR / "yolo26n.pt",
         ],
     )
 )
+YOLO_MODEL_PATH = PERSON_MODEL_PATH  # Alias cho tracker.py
 YOLO_MODEL_WEAPON_PATH = str(
     _resolve_path(
         "YOLO_MODEL_WEAPON_PATH",
@@ -137,13 +138,14 @@ for directory in (Path(MODELS_DIR), Path(INPUT_DIR), FACE_FEATURES_DIR, Path(OUT
 CAMERA_SOURCES: dict[str, str] = _parse_camera_sources()
 
 # ─── Detection / Tracking ─────────────────────────────────────────────────────
-PERSON_CONF_THRESHOLD = _env_float("PERSON_CONF_THRESHOLD", 0.5)
+PERSON_CONF_THRESHOLD = _env_float("PERSON_CONF_THRESHOLD", 0.1)
 TRACKER_TYPE = os.getenv("TRACKER_TYPE", "botsort")
 
 # ─── Recognition ──────────────────────────────────────────────────────────────
 RECOGNITION_SIM_THRESHOLD = _env_float("RECOGNITION_SIM_THRESHOLD", 0.3)
 RECOGNITION_REFRESH_FRAMES = _env_int("RECOGNITION_REFRESH_FRAMES", 30)
 UNKNOWN_RETRY_FRAMES = _env_int("UNKNOWN_RETRY_FRAMES", 10)
+FACE_REFRESH_FRAMES = _env_int("FACE_REFRESH_FRAMES", 5)
 
 # ─── InsightFace ──────────────────────────────────────────────────────────────
 INSIGHTFACE_MODEL_NAME = os.getenv("INSIGHTFACE_MODEL_NAME", "buffalo_l")
